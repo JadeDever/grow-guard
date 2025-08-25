@@ -8,17 +8,19 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=@grow-guard/frontend",
+    "dev:backend": "npm run dev --workspace=@grow-guard/backend",
     "build": "npm run build --workspaces",
-    "build:frontend": "npm run build --workspace=frontend",
-    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=@grow-guard/frontend",
+    "build:backend": "npm run build --workspace=@grow-guard/backend",
+    "build:shared": "npm run build --workspace=@grow-guard/shared",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "clean": "npm run clean --workspaces && rimraf dist",
-    "install:all": "npm install && npm run install:frontend && npm run install:backend",
-    "install:frontend": "npm install --workspace=frontend",
-    "install:backend": "npm install --workspace=backend"
+    "install:all": "npm install",
+    "install:frontend": "npm install --workspace=@grow-guard/frontend",
+    "install:backend": "npm install --workspace=@grow-guard/backend",
+    "install:shared": "npm install --workspace=@grow-guard/shared"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
