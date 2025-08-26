@@ -2,9 +2,10 @@ import sqlite3 from 'sqlite3';
 import path from 'path';
 
 const dbPath = process.env.DB_PATH || './data/grow-guard.db';
+let dbInstance: sqlite3.Database | null = null;
 
-export async function initializeDatabase(): Promise<void> {
-  return new Promise((resolve, reject) => {
+export function getDatabase(): sqlite3.Database {
+  if (!dbInstance) {
     // 确保数据目录存在
     const dataDir = path.dirname(dbPath);
     const fs = require('fs');
@@ -12,31 +13,35 @@ export async function initializeDatabase(): Promise<void> {
       fs.mkdirSync(dataDir, { recursive: true });
     }
 
-    const db = new sqlite3.Database(dbPath, (err) => {
+    dbInstance = new sqlite3.Database(dbPath, (err) => {
       if (err) {
         console.error('❌ 数据库连接失败:', err.message);
-        reject(err);
-        return;
+        throw err;
       }
-
       console.log('✅ 数据库连接成功:', dbPath);
-
-      // 启用外键约束
-      db.run('PRAGMA foreign_keys = ON');
-
-      // 创建表
-      createTables(db)
-        .then(() => {
-          console.log('✅ 数据库表创建完成');
-          db.close();
-          resolve();
-        })
-        .catch((err) => {
-          console.error('❌ 数据库表创建失败:', err);
-          db.close();
-          reject(err);
-        });
     });
+
+    // 启用外键约束
+    dbInstance.run('PRAGMA foreign_keys = ON');
+  }
+  
+  return dbInstance;
+}
+
+export async function initializeDatabase(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const db = getDatabase();
+    
+    // 创建表
+    createTables(db)
+      .then(() => {
+        console.log('✅ 数据库表创建完成');
+        resolve();
+      })
+      .catch((err) => {
+        console.error('❌ 数据库表创建失败:', err);
+        reject(err);
+      });
   });
 }
 

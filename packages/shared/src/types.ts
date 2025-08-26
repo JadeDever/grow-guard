@@ -163,3 +163,85 @@ export type PaginatedResponse<T> = {
   data: T[];
   pagination: Pagination;
 };
+
+// 风险评估
+export const RiskAssessmentSchema = z.object({
+  id: z.string().uuid(),
+  portfolioId: z.string().uuid(),
+  totalRisk: z.number().min(0).max(10), // 总体风险评分 (0-10)
+  marketRisk: z.number().min(0).max(10), // 市场风险
+  concentrationRisk: z.number().min(0).max(10), // 集中度风险
+  liquidityRisk: z.number().min(0).max(10), // 流动性风险
+  volatilityRisk: z.number().min(0).max(10), // 波动性风险
+  riskFactors: z.array(z.string()), // 风险因素列表
+  recommendations: z.array(z.string()), // 风险控制建议
+  lastUpdated: z.date(),
+});
+
+export type RiskAssessment = z.infer<typeof RiskAssessmentSchema>;
+
+// 交易分析
+export const TradeAnalysisSchema = z.object({
+  id: z.string().uuid(),
+  portfolioId: z.string().uuid(),
+  totalTrades: z.number().min(0), // 总交易次数
+  winningTrades: z.number().min(0), // 盈利交易次数
+  losingTrades: z.number().min(0), // 亏损交易次数
+  winRate: z.number().min(0).max(1), // 胜率
+  avgWinAmount: z.number(), // 平均盈利金额
+  avgLossAmount: z.number(), // 平均亏损金额
+  profitFactor: z.number(), // 盈亏比
+  sharpeRatio: z.number(), // 夏普比率
+  maxDrawdown: z.number().min(0).max(1), // 最大回撤
+  lastUpdated: z.date(),
+});
+
+export type TradeAnalysis = z.infer<typeof TradeAnalysisSchema>;
+
+// 再平衡建议
+export const RebalanceSuggestionSchema = z.object({
+  id: z.string().uuid(),
+  portfolioId: z.string().uuid(),
+  stockCode: z.string().length(6),
+  stockName: z.string(),
+  action: z.enum(['BUY', 'SELL', 'HOLD']), // 建议操作
+  quantity: z.number(), // 建议数量 (正数为买入，负数为卖出)
+  reason: z.string(), // 建议原因
+  priority: z.enum(['HIGH', 'MEDIUM', 'LOW']), // 优先级
+  expectedImpact: z.string(), // 预期影响
+  createdAt: z.date(),
+});
+
+export type RebalanceSuggestion = z.infer<typeof RebalanceSuggestionSchema>;
+
+// 止损提醒
+export const StopLossAlertSchema = z.object({
+  id: z.string().uuid(),
+  portfolioId: z.string().uuid(),
+  stockCode: z.string().length(6),
+  stockName: z.string(),
+  currentPrice: z.number().positive(),
+  stopLossPrice: z.number().positive(),
+  unrealizedLoss: z.number(), // 未实现亏损
+  lossPercent: z.number().min(0).max(1), // 亏损比例
+  alertLevel: z.enum(['WARNING', 'CRITICAL']), // 提醒级别
+  createdAt: z.date(),
+});
+
+export type StopLossAlert = z.infer<typeof StopLossAlertSchema>;
+
+// 止盈提醒
+export const TakeProfitAlertSchema = z.object({
+  id: z.string().uuid(),
+  portfolioId: z.string().uuid(),
+  stockCode: z.string().length(6),
+  stockName: z.string(),
+  currentPrice: z.number().positive(),
+  takeProfitPrice: z.number().positive(),
+  unrealizedProfit: z.number(), // 未实现盈利
+  profitPercent: z.number().min(0).max(1), // 盈利比例
+  alertLevel: z.enum(['SUGGESTION', 'STRONG']), // 提醒级别
+  createdAt: z.date(),
+});
+
+export type TakeProfitAlert = z.infer<typeof TakeProfitAlertSchema>;

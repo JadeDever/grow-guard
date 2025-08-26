@@ -8,6 +8,7 @@ import {
   Settings,
   TrendingUp,
   Shield,
+  Workflow,
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -15,6 +16,7 @@ const Sidebar: React.FC = () => {
     { name: '仪表盘', href: '/', icon: Home },
     { name: '投资组合', href: '/portfolio', icon: PieChart },
     { name: '持仓管理', href: '/positions', icon: BarChart3 },
+    { name: '业务流程', href: '/business-process', icon: Workflow },
     { name: '交易记录', href: '/transactions', icon: TrendingUp },
     { name: '纪律提醒', href: '/discipline', icon: Shield },
     { name: '报告中心', href: '/reports', icon: FileText },

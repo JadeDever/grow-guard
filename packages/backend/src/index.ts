@@ -8,6 +8,7 @@ import { positionRoutes } from './routes/position';
 import { transactionRoutes } from './routes/transaction';
 import { reportRoutes } from './routes/report';
 import { disciplineRoutes } from './routes/discipline';
+import { dashboardRoutes } from './routes/dashboard';
 import { errorHandler } from './middleware/errorHandler';
 import { initializeDatabase } from './database/init';
 
@@ -40,6 +41,7 @@ app.use('/api/positions', positionRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/discipline', disciplineRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 错误处理中间件
 app.use(errorHandler);

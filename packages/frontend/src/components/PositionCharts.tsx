@@ -18,23 +18,7 @@ import {
   ComposedChart,
   Area,
 } from 'recharts';
-
-interface Position {
-  id: string;
-  stockCode: string;
-  stockName: string;
-  sector: string;
-  quantity: number;
-  avgPrice: number;
-  currentPrice: number;
-  marketValue: number;
-  costValue: number;
-  pnl: number;
-  pnlPercent: number;
-  weight: number;
-  riskLevel: 'low' | 'medium' | 'high';
-  lastUpdate: string;
-}
+import type { Position } from '@shared/types';
 
 interface PositionChartsProps {
   positions: Position[];
@@ -58,14 +42,14 @@ const PositionCharts: React.FC<PositionChartsProps> = ({ positions }) => {
       if (existing) {
         existing.value += position.marketValue;
         existing.weight += position.weight;
-        existing.pnl += position.pnl;
+        existing.pnl += position.unrealizedPnL;
         existing.count += 1;
       } else {
         acc.push({
           name: position.sector,
           value: position.marketValue,
           weight: position.weight,
-          pnl: position.pnl,
+          pnl: position.unrealizedPnL,
           count: 1,
           color: COLORS[acc.length % COLORS.length],
         });
@@ -85,16 +69,22 @@ const PositionCharts: React.FC<PositionChartsProps> = ({ positions }) => {
   // 按风险等级分组
   const riskData = positions.reduce(
     (acc, position) => {
-      const existing = acc.find((r) => r.riskLevel === position.riskLevel);
+      const riskLevel =
+        position.unrealizedPnLPercent > 10
+          ? 'high'
+          : position.unrealizedPnLPercent > 5
+          ? 'medium'
+          : 'low';
+      const existing = acc.find((r) => r.riskLevel === riskLevel);
       if (existing) {
         existing.value += position.marketValue;
         existing.count += 1;
       } else {
         acc.push({
-          riskLevel: position.riskLevel,
+          riskLevel: riskLevel,
           value: position.marketValue,
           count: 1,
-          color: RISK_COLORS[position.riskLevel],
+          color: RISK_COLORS[riskLevel as keyof typeof RISK_COLORS],
         });
       }
       return acc;
@@ -110,8 +100,8 @@ const PositionCharts: React.FC<PositionChartsProps> = ({ positions }) => {
   // 盈亏分布数据
   const pnlData = positions.map((pos) => ({
     name: pos.stockName,
-    pnl: pos.pnl,
-    pnlPercent: pos.pnlPercent,
+    pnl: pos.unrealizedPnL,
+    pnlPercent: pos.unrealizedPnLPercent,
     marketValue: pos.marketValue,
     sector: pos.sector,
   }));
@@ -120,7 +110,7 @@ const PositionCharts: React.FC<PositionChartsProps> = ({ positions }) => {
   const timeData = positions.map((pos, index) => ({
     name: pos.stockName,
     days: Math.floor(Math.random() * 200) + 30,
-    pnlPercent: pos.pnlPercent,
+    pnlPercent: pos.unrealizedPnLPercent,
     sector: pos.sector,
   }));
 
