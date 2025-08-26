@@ -1,6 +1,6 @@
 import { PortfolioService } from '../services/PortfolioService';
 import { getDatabase } from '../database/init';
-import { InvestmentSector } from '@shared/types';
+import { InvestmentSector } from '../types';
 
 async function seedData() {
   const portfolioService = new PortfolioService(getDatabase());

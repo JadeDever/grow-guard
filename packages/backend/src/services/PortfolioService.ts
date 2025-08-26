@@ -4,13 +4,15 @@ import {
   Position,
   Transaction,
   DisciplineSettings,
-} from '@shared/types';
-import {
   PortfolioSchema,
   PositionSchema,
   TransactionSchema,
   DisciplineSettingsSchema,
-} from '@shared/types';
+  PortfolioRow,
+  PositionRow,
+  TransactionRow,
+  DisciplineSettingsRow,
+} from '../types';
 
 export class PortfolioService {
   private db: Database;
@@ -64,25 +66,29 @@ export class PortfolioService {
 
   async getPortfolio(id: string): Promise<Portfolio | null> {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM portfolios WHERE id = ?', [id], (err, row) => {
-        if (err) {
-          reject(err);
-        } else if (row) {
-          const portfolio = {
-            ...row,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at),
-            totalValue: row.total_value,
-            totalCost: row.total_cost,
-            totalPnL: row.total_pnl,
-            totalPnLPercent: row.total_pnl_percent,
-            maxDrawdown: row.max_drawdown,
-          };
-          resolve(PortfolioSchema.parse(portfolio));
-        } else {
-          resolve(null);
+      this.db.get(
+        'SELECT * FROM portfolios WHERE id = ?',
+        [id],
+        (err, row: PortfolioRow) => {
+          if (err) {
+            reject(err);
+          } else if (row) {
+            const portfolio = {
+              ...row,
+              createdAt: new Date(row.created_at),
+              updatedAt: new Date(row.updated_at),
+              totalValue: row.total_value,
+              totalCost: row.total_cost,
+              totalPnL: row.total_pnl,
+              totalPnLPercent: row.total_pnl_percent,
+              maxDrawdown: row.max_drawdown,
+            };
+            resolve(PortfolioSchema.parse(portfolio));
+          } else {
+            resolve(null);
+          }
         }
-      });
+      );
     });
   }
 
@@ -90,7 +96,7 @@ export class PortfolioService {
     return new Promise((resolve, reject) => {
       this.db.all(
         'SELECT * FROM portfolios ORDER BY created_at DESC',
-        (err, rows) => {
+        (err, rows: PortfolioRow[]) => {
           if (err) {
             reject(err);
           } else {
@@ -218,7 +224,7 @@ export class PortfolioService {
     const params = portfolioId ? [portfolioId] : [];
 
     return new Promise((resolve, reject) => {
-      this.db.all(query, params, (err, rows) => {
+      this.db.all(query, params, (err, rows: PositionRow[]) => {
         if (err) {
           reject(err);
         } else {
@@ -350,7 +356,7 @@ export class PortfolioService {
     const params = portfolioId ? [portfolioId] : [];
 
     return new Promise((resolve, reject) => {
-      this.db.all(query, params, (err, rows) => {
+      this.db.all(query, params, (err, rows: TransactionRow[]) => {
         if (err) {
           reject(err);
         } else {
@@ -376,7 +382,7 @@ export class PortfolioService {
       this.db.get(
         'SELECT * FROM discipline_settings WHERE portfolio_id = ?',
         [portfolioId],
-        (err, row) => {
+        (err, row: DisciplineSettingsRow) => {
           if (err) {
             reject(err);
           } else if (row) {
