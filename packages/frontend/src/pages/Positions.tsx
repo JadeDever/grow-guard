@@ -10,8 +10,10 @@ import {
   TrendingDown,
   AlertTriangle,
   CheckCircle,
-  BarChart3
+  BarChart3,
+  PieChart
 } from 'lucide-react';
+import PositionCharts from '../components/PositionCharts';
 
 interface Position {
   id: string;
@@ -47,6 +49,7 @@ const Positions: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSector, setFilterSector] = useState('');
   const [filterRisk, setFilterRisk] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'transactions'>('overview');
 
   // 模拟数据
   const positions: Position[] = [
@@ -160,6 +163,12 @@ const Positions: React.FC = () => {
     return true;
   });
 
+  const tabs = [
+    { id: 'overview', name: '持仓概览', icon: PieChart },
+    { id: 'charts', name: '数据分析', icon: BarChart3 },
+    { id: 'transactions', name: '交易记录', icon: TrendingUp }
+  ];
+
   return (
     <div className='space-y-6'>
       {/* 页面标题和操作 */}
@@ -180,8 +189,34 @@ const Positions: React.FC = () => {
         </div>
       </div>
 
-      {/* 筛选器 */}
-      <div className='card'>
+      {/* 标签页导航 */}
+      <div className='border-b border-gray-200'>
+        <nav className='-mb-px flex space-x-8'>
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === tab.id
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Icon className='h-4 w-4' />
+                <span>{tab.name}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* 持仓概览标签页 */}
+      {activeTab === 'overview' && (
+        <>
+          {/* 筛选器 */}
+          <div className='card'>
         <div className='flex items-center justify-between mb-4'>
           <h3 className='text-lg font-medium text-gray-900'>筛选条件</h3>
           <button
@@ -499,6 +534,76 @@ const Positions: React.FC = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* 数据分析标签页 */}
+      {activeTab === 'charts' && (
+        <PositionCharts positions={positions} />
+      )}
+
+      {/* 交易记录标签页 */}
+      {activeTab === 'transactions' && (
+        <div className='card'>
+          <h3 className='text-lg font-medium text-gray-900 mb-4'>最近交易记录</h3>
+          <div className='overflow-x-auto'>
+            <table className='min-w-full divide-y divide-gray-200'>
+              <thead className='bg-gray-50'>
+                <tr>
+                  <th className='px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    交易信息
+                  </th>
+                  <th className='px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    数量
+                  </th>
+                  <th className='px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    价格
+                  </th>
+                  <th className='px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    金额
+                  </th>
+                  <th className='px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    日期
+                  </th>
+                </tr>
+              </thead>
+              <tbody className='bg-white divide-y divide-gray-200'>
+                {transactions.map((transaction) => (
+                  <tr key={transaction.id} className='hover:bg-gray-50'>
+                    <td className='px-3 py-4 whitespace-nowrap'>
+                      <div className='flex items-center'>
+                        <div className={`w-3 h-3 rounded-full mr-2 ${
+                          transaction.type === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                        <div>
+                          <div className='text-sm font-medium text-gray-900'>
+                            {transaction.stockName}
+                          </div>
+                          <div className='text-sm text-gray-500'>
+                            {transaction.stockCode} · {transaction.reason}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-900'>
+                      {transaction.quantity}
+                    </td>
+                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-900'>
+                      ¥{transaction.price.toFixed(2)}
+                    </td>
+                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-900'>
+                      ¥{(transaction.amount / 10000).toFixed(1)}万
+                    </td>
+                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500'>
+                      {transaction.date}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 持仓详情模态框 */}
       {selectedPosition && (
