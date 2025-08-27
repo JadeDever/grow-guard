@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { usePortfolioBusiness } from '../hooks/usePortfolioBusiness';
 import { Position } from '@shared/types';
 import {
-  Plus,
-  BarChart3,
-  TrendingUp,
+  Shield,
   AlertTriangle,
   FileText,
   Settings,
@@ -13,7 +11,20 @@ import {
   Trash2,
   ArrowUpRight,
   ArrowDownRight,
+  Bell,
+  Target,
+  Workflow,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Breadcrumb from '../components/ui/Breadcrumb';
 
 const BusinessProcess: React.FC = () => {
   const {
@@ -24,936 +35,699 @@ const BusinessProcess: React.FC = () => {
     riskAssessment,
     loading,
     error,
-    createPortfolio,
-    selectPortfolio,
-    addPosition,
-    updatePosition,
-    deletePosition,
-    createTradeOrder,
     refreshRiskAssessment,
     generateReport,
     exportReport,
   } = usePortfolioBusiness();
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [showCreatePortfolio, setShowCreatePortfolio] = useState(false);
-  const [showAddPosition, setShowAddPosition] = useState(false);
-  const [showTradeOrder, setShowTradeOrder] = useState(false);
-  const [editingPosition, setEditingPosition] = useState<Position | null>(null);
+  const [showRiskSettings, setShowRiskSettings] = useState(false);
+  const [showProcessConfig, setShowProcessConfig] = useState(false);
 
-  // 表单状态
-  const [portfolioForm, setPortfolioForm] = useState({
-    name: '',
-    description: '',
-    totalValue: 0,
-    totalCost: 0,
+  // 风控设置表单状态
+  const [riskForm, setRiskForm] = useState({
+    maxDrawdown: 10,
+    stopLossPercent: 5,
+    takeProfitPercent: 20,
+    maxSectorWeight: 30,
+    maxSingleWeight: 15,
   });
 
-  const [positionForm, setPositionForm] = useState({
-    stockCode: '',
-    stockName: '',
-    sector: 'AI_COMPUTING' as any,
-    quantity: 0,
-    avgCost: 0,
-    currentPrice: 0,
+  // 流程配置表单状态
+  const [processForm, setProcessForm] = useState({
+    requireApproval: true,
+    approvalThreshold: 100000,
+    autoRebalance: false,
+    rebalanceFrequency: 'weekly',
+    riskCheckInterval: 'daily',
   });
 
-  const [tradeForm, setTradeForm] = useState({
-    stockCode: '',
-    stockName: '',
-    type: 'BUY' as 'BUY' | 'SELL',
-    quantity: 0,
-    price: 0,
-    reason: '',
-  });
-
-  // 创建投资组合
-  const handleCreatePortfolio = async () => {
-    try {
-      await createPortfolio({
-        ...portfolioForm,
-        totalPnL: 0,
-        totalPnLPercent: 0,
-        maxDrawdown: 0,
-        positions: [],
-        sectorWeights: {},
-      });
-      setShowCreatePortfolio(false);
-      setPortfolioForm({
-        name: '',
-        description: '',
-        totalValue: 0,
-        totalCost: 0,
-      });
-    } catch (error) {
-      console.error('创建投资组合失败:', error);
-    }
-  };
-
-  // 添加持仓
-  const handleAddPosition = async () => {
-    if (!currentPortfolio) return;
-
-    try {
-      const marketValue = positionForm.quantity * positionForm.currentPrice;
-      const unrealizedPnL =
-        marketValue - positionForm.quantity * positionForm.avgCost;
-      const unrealizedPnLPercent =
-        positionForm.avgCost > 0
-          ? (unrealizedPnL / (positionForm.quantity * positionForm.avgCost)) *
-            100
-          : 0;
-
-      await addPosition({
-        ...positionForm,
-        marketValue,
-        unrealizedPnL,
-        unrealizedPnLPercent,
-        weight: marketValue / currentPortfolio.totalValue,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      setShowAddPosition(false);
-      setPositionForm({
-        stockCode: '',
-        stockName: '',
-        sector: 'AI_COMPUTING',
-        quantity: 0,
-        avgCost: 0,
-        currentPrice: 0,
-      });
-    } catch (error) {
-      console.error('添加持仓失败:', error);
-    }
-  };
-
-  // 执行交易
-  const handleExecuteTrade = async () => {
-    if (!currentPortfolio) return;
-
-    try {
-      await createTradeOrder({
-        ...tradeForm,
-        portfolioId: currentPortfolio.id,
-        amount: tradeForm.quantity * tradeForm.price,
-        commission: 0,
-      });
-      setShowTradeOrder(false);
-      setTradeForm({
-        stockCode: '',
-        stockName: '',
-        type: 'BUY',
-        quantity: 0,
-        price: 0,
-        reason: '',
-      });
-    } catch (error) {
-      console.error('执行交易失败:', error);
-    }
-  };
-
-  // 生成报告
-  const handleGenerateReport = async () => {
-    if (!currentPortfolio) return;
-
-    try {
-      const report = await generateReport('comprehensive');
-      console.log('生成的报告:', report);
-
-      // 导出报告
-      const exportedContent = await exportReport(report, 'json');
-      console.log('导出的报告内容:', exportedContent);
-    } catch (error) {
-      console.error('生成报告失败:', error);
-    }
-  };
-
-  const tabs = [
-    { id: 'overview', label: '概览', icon: BarChart3 },
-    { id: 'positions', label: '持仓管理', icon: TrendingUp },
-    { id: 'trading', label: '交易执行', icon: ArrowUpRight },
-    { id: 'risk', label: '风险监控', icon: AlertTriangle },
-    { id: 'reports', label: '报告生成', icon: FileText },
+  // 风控指标数据
+  const riskMetrics = [
+    { metric: '夏普比率', value: 1.2, target: 1.0, status: 'good' as const },
+    { metric: '最大回撤', value: 8.5, target: 10.0, status: 'good' as const },
+    { metric: '波动率', value: 15.3, target: 12.0, status: 'warning' as const },
+    { metric: '贝塔系数', value: 0.85, target: 1.0, status: 'good' as const },
+    { metric: 'VaR (95%)', value: 2.1, target: 3.0, status: 'good' as const },
+    { metric: '信息比率', value: 0.8, target: 1.0, status: 'warning' as const },
   ];
 
+  // 风控提醒数据
+  const riskAlerts = [
+    {
+      id: 1,
+      type: 'stopLoss',
+      message: '比亚迪(002594) 触发止损提醒',
+      stock: '比亚迪',
+      code: '002594',
+      currentPrice: 180.5,
+      stopPrice: 175.0,
+      time: '2分钟前',
+      priority: 'high',
+    },
+    {
+      id: 2,
+      type: 'takeProfit',
+      message: '宁德时代(300750) 达到止盈目标',
+      stock: '宁德时代',
+      code: '300750',
+      currentPrice: 245.8,
+      targetPrice: 240.0,
+      time: '15分钟前',
+      priority: 'medium',
+    },
+    {
+      id: 3,
+      type: 'weightLimit',
+      message: '军工板块权重超限提醒',
+      sector: '军工',
+      currentWeight: 25.5,
+      maxWeight: 20.0,
+      time: '1小时前',
+      priority: 'high',
+    },
+  ];
+
+  // 流程审批数据
+  const approvalProcesses = [
+    {
+      id: 1,
+      type: 'position',
+      description: '新增比亚迪持仓',
+      amount: 50000,
+      requester: '张三',
+      status: 'pending',
+      createTime: '2024-01-15 10:30',
+    },
+    {
+      id: 2,
+      type: 'rebalance',
+      description: '调整AI算力权重',
+      amount: 80000,
+      requester: '李四',
+      status: 'approved',
+      createTime: '2024-01-15 09:15',
+    },
+    {
+      id: 3,
+      type: 'risk',
+      description: '风控参数调整',
+      amount: 0,
+      requester: '王五',
+      status: 'rejected',
+      createTime: '2024-01-15 08:45',
+    },
+  ];
+
+  // 保存风控设置
+  const handleSaveRiskSettings = async () => {
+    try {
+      // 这里应该调用API保存风控设置
+      console.log('保存风控设置:', riskForm);
+      setShowRiskSettings(false);
+    } catch (error) {
+      console.error('保存风控设置失败:', error);
+    }
+  };
+
+  // 保存流程配置
+  const handleSaveProcessConfig = async () => {
+    try {
+      // 这里应该调用API保存流程配置
+      console.log('保存流程配置:', processForm);
+      setShowProcessConfig(false);
+    } catch (error) {
+      console.error('保存流程配置失败:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4'></div>
+          <p className='text-gray-600'>加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='text-center'>
+          <AlertTriangle className='h-8 w-8 text-red-600 mx-auto mb-4' />
+          <p className='text-red-600'>加载失败: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className='min-h-screen bg-gray-50'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-        {/* 页面标题 */}
-        <div className='mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900'>业务流程管理</h1>
-          <p className='mt-2 text-gray-600'>
-            管理投资组合的完整业务流程，从创建到监控的全流程操作
-          </p>
+    <div className='space-y-6 animate-fade-in'>
+      {/* 页面标题和面包屑 */}
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0'>
+        <div>
+          <h1 className='text-3xl font-bold text-gradient'>风控合规管理</h1>
+          <p className='text-gray-600 mt-1'>风险控制和业务流程管理</p>
         </div>
+        <div className='flex items-center space-x-3'>
+          <Button
+            variant='secondary'
+            size='sm'
+            onClick={() => setShowProcessConfig(true)}
+          >
+            <Workflow className='h-4 w-4 mr-2' />
+            流程配置
+          </Button>
+          <Button
+            variant='primary'
+            size='sm'
+            onClick={() => setShowRiskSettings(true)}
+          >
+            <Shield className='h-4 w-4 mr-2' />
+            风控设置
+          </Button>
+        </div>
+      </div>
 
-        {/* 投资组合选择 */}
-        <div className='mb-6 bg-white rounded-lg shadow p-6'>
-          <div className='flex items-center justify-between mb-4'>
-            <h2 className='text-xl font-semibold text-gray-900'>投资组合</h2>
-            <button
-              onClick={() => setShowCreatePortfolio(true)}
-              className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700'
-            >
-              <Plus className='w-4 h-4 mr-2' />
-              创建投资组合
-            </button>
-          </div>
+      <Breadcrumb />
 
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-            {portfolios.map((portfolio) => (
-              <div
-                key={portfolio.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  currentPortfolio?.id === portfolio.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+      {/* 风控概览卡片 */}
+      <div className='grid grid-cols-1 md:grid-cols-4 gap-6'>
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center text-sm'>
+              <Shield className='h-4 w-4 mr-2 text-blue-600' />
+              风控状态
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold text-green-600'>正常</div>
+            <p className='text-xs text-gray-500 mt-1'>风险可控</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center text-sm'>
+              <AlertTriangle className='h-4 w-4 mr-2 text-red-600' />
+              风险提醒
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold text-red-600'>
+              {riskAlerts.length}
+            </div>
+            <p className='text-xs text-gray-500 mt-1'>需要关注</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center text-sm'>
+              <Workflow className='h-4 w-4 mr-2 text-purple-600' />
+              待审批
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold text-yellow-600'>
+              {approvalProcesses.filter((p) => p.status === 'pending').length}
+            </div>
+            <p className='text-xs text-gray-500 mt-1'>等待处理</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center text-sm'>
+              <Target className='h-4 w-4 mr-2 text-green-600' />
+              合规率
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold text-green-600'>98.5%</div>
+            <p className='text-xs text-gray-500 mt-1'>符合要求</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 标签页导航 */}
+      <div className='border-b border-gray-200'>
+        <nav className='-mb-px flex space-x-8'>
+          {[
+            { id: 'overview', name: '概览', icon: Shield },
+            { id: 'alerts', name: '风险提醒', icon: AlertTriangle },
+            { id: 'approval', name: '流程审批', icon: Workflow },
+            { id: 'compliance', name: '合规检查', icon: CheckCircle },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === tab.id
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => selectPortfolio(portfolio.id)}
               >
-                <h3 className='font-medium text-gray-900'>{portfolio.name}</h3>
-                <p className='text-sm text-gray-500'>{portfolio.description}</p>
-                <div className='mt-2 text-sm'>
-                  <span className='text-gray-600'>总价值: </span>
-                  <span className='font-medium'>
-                    ¥{portfolio.totalValue.toLocaleString()}
-                  </span>
+                <Icon className='h-4 w-4' />
+                <span>{tab.name}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* 标签页内容 */}
+      <div className='min-h-96'>
+        {activeTab === 'overview' && (
+          <div className='space-y-6'>
+            {/* 风控指标 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>风控指标监控</CardTitle>
+                <CardDescription>关键风险指标实时监控</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+                  {riskMetrics.map((metric, index) => (
+                    <div key={index} className='p-4 bg-gray-50 rounded-lg'>
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-sm font-medium text-gray-700'>
+                          {metric.metric}
+                        </span>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            metric.status === 'good'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {metric.status === 'good' ? '良好' : '注意'}
+                        </span>
+                      </div>
+                      <div className='flex items-baseline space-x-2'>
+                        <span className='text-2xl font-bold text-gray-900'>
+                          {metric.value}
+                        </span>
+                        <span className='text-sm text-gray-500'>
+                          目标: {metric.target}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className='mt-1 text-sm'>
-                  <span className='text-gray-600'>盈亏: </span>
-                  <span
-                    className={`font-medium ${
-                      portfolio.totalPnL >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}
+              </CardContent>
+            </Card>
+
+            {/* 快速操作 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>快速操作</CardTitle>
+                <CardDescription>常用功能快捷入口</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                  <Button
+                    variant='primary'
+                    className='w-full'
+                    onClick={() => setShowRiskSettings(true)}
                   >
-                    {portfolio.totalPnL >= 0 ? '+' : ''}¥
-                    {portfolio.totalPnL.toLocaleString()}
-                  </span>
+                    <Shield className='h-4 w-4 mr-2' />
+                    风控设置
+                  </Button>
+                  <Button
+                    variant='secondary'
+                    className='w-full'
+                    onClick={() => setShowProcessConfig(true)}
+                  >
+                    <Workflow className='h-4 w-4 mr-2' />
+                    流程配置
+                  </Button>
+                  <Button
+                    variant='secondary'
+                    className='w-full'
+                    onClick={() => (window.location.href = '/reports')}
+                  >
+                    <FileText className='h-4 w-4 mr-2' />
+                    合规报告
+                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 当前投资组合信息 */}
-        {currentPortfolio && (
-          <div className='mb-6 bg-white rounded-lg shadow p-6'>
-            <div className='flex items-center justify-between mb-4'>
-              <h2 className='text-xl font-semibold text-gray-900'>
-                当前投资组合: {currentPortfolio.name}
-              </h2>
-              <div className='flex space-x-2'>
-                <button
-                  onClick={() => setShowAddPosition(true)}
-                  className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700'
-                >
-                  <Plus className='w-4 h-4 mr-2' />
-                  添加持仓
-                </button>
-                <button
-                  onClick={() => setShowTradeOrder(true)}
-                  className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700'
-                >
-                  <ArrowUpRight className='w-4 h-4 mr-2' />
-                  执行交易
-                </button>
-              </div>
-            </div>
-
-            <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-              <div className='text-center'>
-                <div className='text-2xl font-bold text-gray-900'>
-                  ¥{currentPortfolio.totalValue.toLocaleString()}
-                </div>
-                <div className='text-sm text-gray-500'>总价值</div>
-              </div>
-              <div className='text-center'>
-                <div className='text-2xl font-bold text-gray-900'>
-                  ¥{currentPortfolio.totalCost.toLocaleString()}
-                </div>
-                <div className='text-sm text-gray-500'>总成本</div>
-              </div>
-              <div className='text-center'>
-                <div
-                  className={`text-2xl font-bold ${
-                    currentPortfolio.totalPnL >= 0
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                  }`}
-                >
-                  {currentPortfolio.totalPnL >= 0 ? '+' : ''}¥
-                  {currentPortfolio.totalPnL.toLocaleString()}
-                </div>
-                <div className='text-sm text-gray-500'>总盈亏</div>
-              </div>
-              <div className='text-center'>
-                <div
-                  className={`text-2xl font-bold ${
-                    currentPortfolio.totalPnLPercent >= 0
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                  }`}
-                >
-                  {currentPortfolio.totalPnLPercent >= 0 ? '+' : ''}
-                  {currentPortfolio.totalPnLPercent.toFixed(2)}%
-                </div>
-                <div className='text-sm text-gray-500'>盈亏比例</div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
-        {/* 标签页导航 */}
-        <div className='mb-6'>
-          <nav className='flex space-x-8'>
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className='w-4 h-4' />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        {activeTab === 'alerts' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>风险提醒</CardTitle>
+              <CardDescription>实时风险监控和提醒</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className='space-y-4'>
+                {riskAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className='flex items-start space-x-3 p-4 bg-gray-50 rounded-lg'
+                  >
+                    <div className='flex-shrink-0 mt-1'>
+                      {alert.type === 'stopLoss' ? (
+                        <AlertTriangle className='h-5 w-5 text-red-600' />
+                      ) : alert.type === 'takeProfit' ? (
+                        <CheckCircle className='h-5 w-5 text-green-600' />
+                      ) : (
+                        <Bell className='h-5 w-5 text-yellow-600' />
+                      )}
+                    </div>
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex items-center space-x-2 mb-1'>
+                        <p className='text-sm font-medium text-gray-900'>
+                          {alert.message}
+                        </p>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            alert.priority === 'high'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {alert.priority === 'high' ? '高' : '中'}
+                        </span>
+                      </div>
+                      <div className='text-sm text-gray-600'>
+                        {alert.stock && `${alert.stock}(${alert.code})`}
+                        {alert.sector && `${alert.sector}板块`}
+                        {alert.currentWeight &&
+                          `当前权重: ${alert.currentWeight}%`}
+                        {alert.maxWeight && `最大权重: ${alert.maxWeight}%`}
+                      </div>
+                      <p className='text-xs text-gray-500 mt-1'>{alert.time}</p>
+                    </div>
+                    <Button variant='ghost' size='sm'>
+                      处理
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* 标签页内容 */}
-        <div className='bg-white rounded-lg shadow'>
-          {/* 概览标签页 */}
-          {activeTab === 'overview' && (
-            <div className='p-6'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                投资组合概览
-              </h3>
-              {currentPortfolio ? (
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-                  <div className='bg-blue-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-blue-900'>持仓统计</h4>
-                    <div className='mt-2 text-2xl font-bold text-blue-900'>
-                      {positions.length}
-                    </div>
-                    <div className='text-sm text-blue-600'>总持仓数</div>
-                  </div>
-                  <div className='bg-green-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-green-900'>交易统计</h4>
-                    <div className='mt-2 text-2xl font-bold text-green-900'>
-                      {transactions.length}
-                    </div>
-                    <div className='text-sm text-green-600'>总交易数</div>
-                  </div>
-                  <div className='bg-purple-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-purple-900'>风险评分</h4>
-                    <div className='mt-2 text-2xl font-bold text-purple-900'>
-                      {riskAssessment?.totalRisk || 'N/A'}
-                    </div>
-                    <div className='text-sm text-purple-600'>风险等级</div>
-                  </div>
-                </div>
-              ) : (
-                <p className='text-gray-500'>请先选择一个投资组合</p>
-              )}
-            </div>
-          )}
-
-          {/* 持仓管理标签页 */}
-          {activeTab === 'positions' && (
-            <div className='p-6'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                持仓管理
-              </h3>
-              {positions.length > 0 ? (
-                <div className='overflow-x-auto'>
-                  <table className='min-w-full divide-y divide-gray-200'>
-                    <thead className='bg-gray-50'>
-                      <tr>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          股票代码
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          股票名称
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          数量
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          成本价
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          当前价
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          市值
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          盈亏
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          操作
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className='bg-white divide-y divide-gray-200'>
-                      {positions.map((position) => (
-                        <tr key={position.id}>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
-                            {position.stockCode}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            {position.stockName}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            {position.quantity.toLocaleString()}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            ¥{position.avgCost.toFixed(2)}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            ¥{position.currentPrice.toFixed(2)}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            ¥{position.marketValue.toLocaleString()}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm'>
-                            <span
-                              className={`font-medium ${
-                                position.unrealizedPnL >= 0
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
-                              }`}
-                            >
-                              {position.unrealizedPnL >= 0 ? '+' : ''}¥
-                              {position.unrealizedPnL.toLocaleString()}
-                            </span>
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-                            <div className='flex space-x-2'>
-                              <button
-                                onClick={() => setEditingPosition(position)}
-                                className='text-blue-600 hover:text-blue-900'
-                              >
-                                <Edit className='w-4 h-4' />
-                              </button>
-                              <button
-                                onClick={() => deletePosition(position.id)}
-                                className='text-red-600 hover:text-red-900'
-                              >
-                                <Trash2 className='w-4 h-4' />
-                              </button>
+        {activeTab === 'approval' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>流程审批</CardTitle>
+              <CardDescription>投资决策审批流程管理</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className='overflow-x-auto'>
+                <table className='min-w-full divide-y divide-gray-200'>
+                  <thead className='bg-gray-50'>
+                    <tr>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                        申请信息
+                      </th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                        金额
+                      </th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                        申请人
+                      </th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                        状态
+                      </th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                        操作
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className='bg-white divide-y divide-gray-200'>
+                    {approvalProcesses.map((process) => (
+                      <tr key={process.id}>
+                        <td className='px-6 py-4 whitespace-nowrap'>
+                          <div>
+                            <div className='text-sm font-medium text-gray-900'>
+                              {process.description}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className='text-gray-500'>暂无持仓数据</p>
-              )}
-            </div>
-          )}
-
-          {/* 交易执行标签页 */}
-          {activeTab === 'trading' && (
-            <div className='p-6'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                交易执行
-              </h3>
-              {transactions.length > 0 ? (
-                <div className='overflow-x-auto'>
-                  <table className='min-w-full divide-y divide-gray-200'>
-                    <thead className='bg-gray-50'>
-                      <tr>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          日期
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          股票代码
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          股票名称
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          类型
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          数量
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          价格
-                        </th>
-                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          金额
-                        </th>
+                            <div className='text-sm text-gray-500'>
+                              {process.createTime}
+                            </div>
+                          </div>
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                          {process.amount > 0
+                            ? `¥${process.amount.toLocaleString()}`
+                            : '-'}
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                          {process.requester}
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap'>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              process.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : process.status === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {process.status === 'pending'
+                              ? '待审批'
+                              : process.status === 'approved'
+                              ? '已通过'
+                              : '已拒绝'}
+                          </span>
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+                          {process.status === 'pending' && (
+                            <div className='flex space-x-2'>
+                              <Button variant='success' size='sm'>
+                                <CheckCircle className='h-3 w-3 mr-1' />
+                                通过
+                              </Button>
+                              <Button variant='danger' size='sm'>
+                                <XCircle className='h-3 w-3 mr-1' />
+                                拒绝
+                              </Button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className='bg-white divide-y divide-gray-200'>
-                      {transactions.map((transaction) => (
-                        <tr key={transaction.id}>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            {transaction.date.toLocaleDateString()}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
-                            {transaction.stockCode}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            {transaction.stockName}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm'>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                transaction.type === 'BUY'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {transaction.type === 'BUY' ? (
-                                <ArrowUpRight className='w-3 h-3 mr-1' />
-                              ) : (
-                                <ArrowDownRight className='w-3 h-3 mr-1' />
-                              )}
-                              {transaction.type === 'BUY' ? '买入' : '卖出'}
-                            </span>
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            {transaction.quantity.toLocaleString()}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            ¥{transaction.price.toFixed(2)}
-                          </td>
-                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                            ¥{transaction.amount.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className='text-gray-500'>暂无交易记录</p>
-              )}
-            </div>
-          )}
-
-          {/* 风险监控标签页 */}
-          {activeTab === 'risk' && (
-            <div className='p-6'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                风险监控
-              </h3>
-              <div className='flex justify-between items-center mb-4'>
-                <p className='text-gray-600'>实时监控投资组合风险状况</p>
-                <button
-                  onClick={refreshRiskAssessment}
-                  className='inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
-                >
-                  <Eye className='w-4 h-4 mr-2' />
-                  刷新风险评估
-                </button>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {riskAssessment ? (
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
-                  <div className='bg-red-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-red-900'>总体风险</h4>
-                    <div className='mt-2 text-2xl font-bold text-red-900'>
-                      {riskAssessment.totalRisk}
-                    </div>
-                    <div className='text-sm text-red-600'>风险评分</div>
-                  </div>
-                  <div className='bg-yellow-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-yellow-900'>市场风险</h4>
-                    <div className='mt-2 text-2xl font-bold text-yellow-900'>
-                      {riskAssessment.marketRisk}
-                    </div>
-                    <div className='text-sm text-yellow-600'>风险评分</div>
-                  </div>
-                  <div className='bg-orange-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-orange-900'>集中度风险</h4>
-                    <div className='mt-2 text-2xl font-bold text-orange-900'>
-                      {riskAssessment.concentrationRisk}
-                    </div>
-                    <div className='text-sm text-orange-600'>风险评分</div>
-                  </div>
-                  <div className='bg-blue-50 p-4 rounded-lg'>
-                    <h4 className='font-medium text-blue-900'>流动性风险</h4>
-                    <div className='mt-2 text-2xl font-bold text-blue-900'>
-                      {riskAssessment.liquidityRisk}
-                    </div>
-                    <div className='text-sm text-blue-600'>风险评分</div>
-                  </div>
-                </div>
-              ) : (
-                <p className='text-gray-500'>暂无风险评估数据</p>
-              )}
-            </div>
-          )}
-
-          {/* 报告生成标签页 */}
-          {activeTab === 'reports' && (
-            <div className='p-6'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                报告生成
-              </h3>
-              <div className='flex justify-between items-center mb-4'>
-                <p className='text-gray-600'>生成和导出投资组合分析报告</p>
-                <button
-                  onClick={handleGenerateReport}
-                  className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700'
-                >
-                  <FileText className='w-4 h-4 mr-2' />
-                  生成综合报告
-                </button>
-              </div>
-
-              <div className='bg-gray-50 p-4 rounded-lg'>
-                <h4 className='font-medium text-gray-900 mb-2'>报告功能说明</h4>
-                <ul className='text-sm text-gray-600 space-y-1'>
-                  <li>
-                    • 综合报告：包含投资组合概览、持仓分析、风险评估等完整信息
-                  </li>
-                  <li>• 晨报：每日开盘前的市场分析和投资建议</li>
-                  <li>• 收盘报告：当日交易总结和明日展望</li>
-                  <li>• 风险警报：异常风险状况的及时提醒</li>
-                </ul>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 错误提示 */}
-        {error && (
-          <div className='mt-6 bg-red-50 border border-red-200 rounded-md p-4'>
-            <div className='flex'>
-              <AlertTriangle className='w-5 h-5 text-red-400' />
-              <div className='ml-3'>
-                <h3 className='text-sm font-medium text-red-800'>操作失败</h3>
-                <div className='mt-2 text-sm text-red-700'>{error}</div>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* 加载状态 */}
-        {loading && (
-          <div className='mt-6 flex justify-center'>
-            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-          </div>
+        {activeTab === 'compliance' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>合规检查</CardTitle>
+              <CardDescription>系统合规性检查和报告</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className='space-y-4'>
+                <div className='p-4 bg-green-50 border border-green-200 rounded-lg'>
+                  <div className='flex items-center'>
+                    <CheckCircle className='h-5 w-5 text-green-600 mr-3' />
+                    <div>
+                      <h4 className='text-sm font-medium text-green-800'>
+                        合规检查通过
+                      </h4>
+                      <p className='text-sm text-green-700 mt-1'>
+                        所有风控指标均在合规范围内
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <Button
+                    variant='secondary'
+                    className='w-full'
+                    onClick={() => (window.location.href = '/reports')}
+                  >
+                    <FileText className='h-4 w-4 mr-2' />
+                    生成合规报告
+                  </Button>
+                  <Button variant='secondary' className='w-full'>
+                    <Settings className='h-4 w-4 mr-2' />
+                    合规设置
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 
-      {/* 创建投资组合模态框 */}
-      {showCreatePortfolio && (
-        <div className='fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50'>
-          <div className='relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white'>
-            <div className='mt-3'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                创建投资组合
-              </h3>
-              <div className='space-y-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    名称
-                  </label>
-                  <input
-                    type='text'
-                    value={portfolioForm.name}
-                    onChange={(e) =>
-                      setPortfolioForm({
-                        ...portfolioForm,
-                        name: e.target.value,
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    描述
-                  </label>
-                  <textarea
-                    value={portfolioForm.description}
-                    onChange={(e) =>
-                      setPortfolioForm({
-                        ...portfolioForm,
-                        description: e.target.value,
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    初始资金
-                  </label>
-                  <input
-                    type='number'
-                    value={portfolioForm.totalValue}
-                    onChange={(e) =>
-                      setPortfolioForm({
-                        ...portfolioForm,
-                        totalValue: Number(e.target.value),
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
+      {/* 风控设置弹窗 */}
+      {showRiskSettings && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md mx-4'>
+            <div className='flex items-center justify-between mb-4'>
+              <h3 className='text-lg font-medium'>风控设置</h3>
+              <button
+                onClick={() => setShowRiskSettings(false)}
+                className='text-gray-400 hover:text-gray-600'
+              >
+                <XCircle className='h-5 w-5' />
+              </button>
+            </div>
+            <div className='space-y-4'>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>
+                  最大回撤限制 (%)
+                </label>
+                <input
+                  type='number'
+                  value={riskForm.maxDrawdown}
+                  onChange={(e) =>
+                    setRiskForm({
+                      ...riskForm,
+                      maxDrawdown: Number(e.target.value),
+                    })
+                  }
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500'
+                />
               </div>
-              <div className='flex justify-end space-x-3 mt-6'>
-                <button
-                  onClick={() => setShowCreatePortfolio(false)}
-                  className='px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleCreatePortfolio}
-                  className='px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700'
-                >
-                  创建
-                </button>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>
+                  止损比例 (%)
+                </label>
+                <input
+                  type='number'
+                  value={riskForm.stopLossPercent}
+                  onChange={(e) =>
+                    setRiskForm({
+                      ...riskForm,
+                      stopLossPercent: Number(e.target.value),
+                    })
+                  }
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500'
+                />
               </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>
+                  止盈比例 (%)
+                </label>
+                <input
+                  type='number'
+                  value={riskForm.takeProfitPercent}
+                  onChange={(e) =>
+                    setRiskForm({
+                      ...riskForm,
+                      takeProfitPercent: Number(e.target.value),
+                    })
+                  }
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500'
+                />
+              </div>
+            </div>
+            <div className='flex space-x-3 mt-6'>
+              <Button
+                variant='secondary'
+                className='flex-1'
+                onClick={() => setShowRiskSettings(false)}
+              >
+                取消
+              </Button>
+              <Button
+                variant='primary'
+                className='flex-1'
+                onClick={handleSaveRiskSettings}
+              >
+                保存
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 添加持仓模态框 */}
-      {showAddPosition && (
-        <div className='fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50'>
-          <div className='relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white'>
-            <div className='mt-3'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                添加持仓
-              </h3>
-              <div className='space-y-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    股票代码
-                  </label>
-                  <input
-                    type='text'
-                    value={positionForm.stockCode}
-                    onChange={(e) =>
-                      setPositionForm({
-                        ...positionForm,
-                        stockCode: e.target.value,
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    股票名称
-                  </label>
-                  <input
-                    type='text'
-                    value={positionForm.stockName}
-                    onChange={(e) =>
-                      setPositionForm({
-                        ...positionForm,
-                        stockName: e.target.value,
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    数量
-                  </label>
-                  <input
-                    type='number'
-                    value={positionForm.quantity}
-                    onChange={(e) =>
-                      setPositionForm({
-                        ...positionForm,
-                        quantity: Number(e.target.value),
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    成本价
-                  </label>
-                  <input
-                    type='number'
-                    step='0.01'
-                    value={positionForm.avgCost}
-                    onChange={(e) =>
-                      setPositionForm({
-                        ...positionForm,
-                        avgCost: Number(e.target.value),
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    当前价
-                  </label>
-                  <input
-                    type='number'
-                    step='0.01'
-                    value={positionForm.currentPrice}
-                    onChange={(e) =>
-                      setPositionForm({
-                        ...positionForm,
-                        currentPrice: Number(e.target.value),
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
+      {/* 流程配置弹窗 */}
+      {showProcessConfig && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md mx-4'>
+            <div className='flex items-center justify-between mb-4'>
+              <h3 className='text-lg font-medium'>流程配置</h3>
+              <button
+                onClick={() => setShowProcessConfig(false)}
+                className='text-gray-400 hover:text-gray-600'
+              >
+                <XCircle className='h-5 w-5' />
+              </button>
+            </div>
+            <div className='space-y-4'>
+              <div className='flex items-center justify-between'>
+                <label className='text-sm font-medium text-gray-700'>
+                  需要审批
+                </label>
+                <input
+                  type='checkbox'
+                  checked={processForm.requireApproval}
+                  onChange={(e) =>
+                    setProcessForm({
+                      ...processForm,
+                      requireApproval: e.target.checked,
+                    })
+                  }
+                  className='rounded border-gray-300 text-primary-600 focus:ring-primary-500'
+                />
               </div>
-              <div className='flex justify-end space-x-3 mt-6'>
-                <button
-                  onClick={() => setShowAddPosition(false)}
-                  className='px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleAddPosition}
-                  className='px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700'
-                >
-                  添加
-                </button>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>
+                  审批阈值 (¥)
+                </label>
+                <input
+                  type='number'
+                  value={processForm.approvalThreshold}
+                  onChange={(e) =>
+                    setProcessForm({
+                      ...processForm,
+                      approvalThreshold: Number(e.target.value),
+                    })
+                  }
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500'
+                />
+              </div>
+              <div className='flex items-center justify-between'>
+                <label className='text-sm font-medium text-gray-700'>
+                  自动调仓
+                </label>
+                <input
+                  type='checkbox'
+                  checked={processForm.autoRebalance}
+                  onChange={(e) =>
+                    setProcessForm({
+                      ...processForm,
+                      autoRebalance: e.target.checked,
+                    })
+                  }
+                  className='rounded border-gray-300 text-primary-600 focus:ring-primary-500'
+                />
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* 执行交易模态框 */}
-      {showTradeOrder && (
-        <div className='fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50'>
-          <div className='relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white'>
-            <div className='mt-3'>
-              <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                执行交易
-              </h3>
-              <div className='space-y-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    股票代码
-                  </label>
-                  <input
-                    type='text'
-                    value={tradeForm.stockCode}
-                    onChange={(e) =>
-                      setTradeForm({ ...tradeForm, stockCode: e.target.value })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    股票名称
-                  </label>
-                  <input
-                    type='text'
-                    value={tradeForm.stockName}
-                    onChange={(e) =>
-                      setTradeForm({ ...tradeForm, stockName: e.target.value })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    交易类型
-                  </label>
-                  <select
-                    value={tradeForm.type}
-                    onChange={(e) =>
-                      setTradeForm({
-                        ...tradeForm,
-                        type: e.target.value as 'BUY' | 'SELL',
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  >
-                    <option value='BUY'>买入</option>
-                    <option value='SELL'>卖出</option>
-                  </select>
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    数量
-                  </label>
-                  <input
-                    type='number'
-                    value={tradeForm.quantity}
-                    onChange={(e) =>
-                      setTradeForm({
-                        ...tradeForm,
-                        quantity: Number(e.target.value),
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    价格
-                  </label>
-                  <input
-                    type='number'
-                    step='0.01'
-                    value={tradeForm.price}
-                    onChange={(e) =>
-                      setTradeForm({
-                        ...tradeForm,
-                        price: Number(e.target.value),
-                      })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    交易原因
-                  </label>
-                  <textarea
-                    value={tradeForm.reason}
-                    onChange={(e) =>
-                      setTradeForm({ ...tradeForm, reason: e.target.value })
-                    }
-                    className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'
-                    rows={2}
-                  />
-                </div>
-              </div>
-              <div className='flex justify-end space-x-3 mt-6'>
-                <button
-                  onClick={() => setShowTradeOrder(false)}
-                  className='px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleExecuteTrade}
-                  className='px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700'
-                >
-                  执行交易
-                </button>
-              </div>
+            <div className='flex space-x-3 mt-6'>
+              <Button
+                variant='secondary'
+                className='flex-1'
+                onClick={() => setShowProcessConfig(false)}
+              >
+                取消
+              </Button>
+              <Button
+                variant='primary'
+                className='flex-1'
+                onClick={handleSaveProcessConfig}
+              >
+                保存
+              </Button>
             </div>
           </div>
         </div>

@@ -6,14 +6,6 @@ import {
   PieChart,
   AlertTriangle,
   CheckCircle,
-  Plus,
-  BarChart3,
-  FileText,
-  Shield,
-  Activity,
-  Settings,
-  TrendingUp as TrendingUpIcon,
-  Bell,
 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Card, {
@@ -24,8 +16,6 @@ import Card, {
   CardFooter,
 } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import QuickNav from '../components/ui/QuickNav';
-import { QuickNavItem } from '../components/ui/QuickNav';
 
 const Dashboard: React.FC = () => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -73,74 +63,6 @@ const Dashboard: React.FC = () => {
     { name: '高端制造', weight: 0.15, color: 'bg-green-500', trend: 0.9 },
     { name: '机器人', weight: 0.03, color: 'bg-yellow-500', trend: 0.3 },
     { name: '新能源', weight: 0.02, color: 'bg-cyan-500', trend: -0.2 },
-  ];
-
-  // 快速操作项 - 按功能分类
-  const quickActions: QuickNavItem[] = [
-    // 投资管理
-    {
-      name: '添加持仓',
-      href: '/portfolio',
-      icon: Plus,
-      description: '新增股票或基金持仓',
-      variant: 'primary',
-      badge: '新',
-      badgeColor: 'success',
-    },
-    {
-      name: '调整仓位',
-      href: '/portfolio',
-      icon: BarChart3,
-      description: '调整投资组合权重',
-      variant: 'secondary',
-    },
-    {
-      name: '交易记录',
-      href: '/portfolio',
-      icon: TrendingUpIcon,
-      description: '查看交易历史记录',
-      variant: 'secondary',
-    },
-    // 风控合规
-    {
-      name: '纪律设置',
-      href: '/portfolio',
-      icon: Shield,
-      description: '设置风险控制参数',
-      variant: 'secondary',
-      badge: '3',
-      badgeColor: 'warning',
-    },
-    {
-      name: '风险监控',
-      href: '/portfolio',
-      icon: Bell,
-      description: '实时风险监控',
-      variant: 'secondary',
-    },
-    // 分析报告
-    {
-      name: '生成报告',
-      href: '/portfolio',
-      icon: FileText,
-      description: '生成投资分析报告',
-      variant: 'secondary',
-    },
-    {
-      name: '绩效分析',
-      href: '/portfolio',
-      icon: Activity,
-      description: '分析投资收益表现',
-      variant: 'secondary',
-    },
-    // 系统管理
-    {
-      name: '系统设置',
-      href: '/portfolio',
-      icon: Settings,
-      description: '系统配置参数',
-      variant: 'secondary',
-    },
   ];
 
   useEffect(() => {
@@ -324,14 +246,6 @@ const Dashboard: React.FC = () => {
           </CardFooter>
         </Card>
       </div>
-
-      {/* 快速操作区域 */}
-      <QuickNav
-        title='快速操作'
-        items={quickActions}
-        columns={4}
-        className='animate-fade-in'
-      />
     </div>
   );
 };

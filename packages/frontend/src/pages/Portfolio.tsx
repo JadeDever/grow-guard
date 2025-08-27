@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { Plus, Download, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Download, RefreshCw, AlertTriangle, BarChart3, PieChart, TrendingUp, Shield } from 'lucide-react';
 import PortfolioCharts from '../components/PortfolioCharts';
 import RiskManagementPanel from '../components/RiskManagementPanel';
 import { usePortfolioBusiness } from '../hooks/usePortfolioBusiness';
+import Card, { CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Breadcrumb from '../components/ui/Breadcrumb';
 
 const Portfolio: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'charts' | 'positions' | 'risk'
+    'overview' | 'charts' | 'allocation' | 'risk'
   >('overview');
 
   // 使用业务逻辑Hook
@@ -98,15 +101,13 @@ const Portfolio: React.FC = () => {
     }
   };
 
-  // 处理风险刷新
-  const handleRefreshRisk = async () => {
-    await refreshRiskAssessment();
-  };
-
   if (loading) {
     return (
       <div className='flex items-center justify-center h-64'>
-        <div className='text-gray-500'>加载中...</div>
+        <div className='text-center'>
+          <RefreshCw className='h-8 w-8 animate-spin text-primary-600 mx-auto mb-4' />
+          <p className='text-gray-600'>加载中...</p>
+        </div>
       </div>
     );
   }
@@ -114,310 +115,287 @@ const Portfolio: React.FC = () => {
   if (error) {
     return (
       <div className='flex items-center justify-center h-64'>
-        <div className='text-red-500'>错误: {error}</div>
+        <div className='text-center'>
+          <AlertTriangle className='h-8 w-8 text-red-600 mx-auto mb-4' />
+          <p className='text-red-600'>加载失败: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentPortfolio) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='text-center'>
+          <BarChart3 className='h-8 w-8 text-gray-400 mx-auto mb-4' />
+          <p className='text-gray-600'>请先创建或选择投资组合</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className='space-y-6'>
-      {/* 页面标题和操作按钮 */}
-      <div className='flex items-center justify-between'>
-        <h1 className='text-2xl font-bold text-gray-900'>投资组合管理</h1>
-        <div className='flex items-center space-x-3'>
-          <button className='btn btn-secondary'>
-            <RefreshCw className='w-4 h-4 mr-2' />
-            刷新数据
-          </button>
-          <button className='btn btn-primary'>
-            <Plus className='w-4 h-4 mr-2' />
-            新建组合
-          </button>
+    <div className='space-y-6 animate-fade-in'>
+      {/* 页面标题和面包屑 */}
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0'>
+        <div>
+          <h1 className='text-3xl font-bold text-gradient'>投资组合管理</h1>
+          <p className='text-gray-600 mt-1'>管理您的投资组合配置和权重</p>
         </div>
+        <div className='flex items-center space-x-3'>
+          <Button
+            variant='secondary'
+            size='sm'
+            onClick={refreshRiskAssessment}
+            loading={loading}
+          >
+            <RefreshCw className='h-4 w-4 mr-2' />
+            刷新风控
+          </Button>
+          <Button
+            variant='primary'
+            size='sm'
+            onClick={handleGenerateReport}
+          >
+            生成报告
+          </Button>
+        </div>
+      </div>
+
+      <Breadcrumb />
+
+      {/* 组合概览卡片 */}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center'>
+              <BarChart3 className='h-5 w-5 mr-2 text-blue-600' />
+              组合总览
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='space-y-3'>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>总市值</span>
+                <span className='font-semibold'>¥{currentPortfolio.totalValue.toLocaleString()}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>总成本</span>
+                <span className='font-semibold'>¥{currentPortfolio.totalCost.toLocaleString()}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>总盈亏</span>
+                <span className={`font-semibold ${currentPortfolio.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ¥{currentPortfolio.totalPnL.toLocaleString()}
+                </span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>收益率</span>
+                <span className={`font-semibold ${currentPortfolio.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {currentPortfolio.totalPnLPercent.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center'>
+              <PieChart className='h-5 w-5 mr-2 text-purple-600' />
+              持仓统计
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='space-y-3'>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>持仓数量</span>
+                <span className='font-semibold'>{positions.length}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>赛道数量</span>
+                <span className='font-semibold'>{Object.keys(currentPortfolio.sectorWeights).length}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>最大回撤</span>
+                <span className='font-semibold text-red-600'>
+                  {(currentPortfolio.maxDrawdown * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center'>
+              <Shield className='h-5 w-5 mr-2 text-green-600' />
+              风控状态
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='space-y-3'>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>止损提醒</span>
+                <span className='font-semibold text-red-600'>{stopLossAlerts.length}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>止盈提醒</span>
+                <span className='font-semibold text-green-600'>{takeProfitAlerts.length}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600'>调仓建议</span>
+                <span className='font-semibold text-blue-600'>{rebalanceSuggestions.length}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* 标签页导航 */}
       <div className='border-b border-gray-200'>
-        <nav className='flex space-x-8'>
+        <nav className='-mb-px flex space-x-8'>
           {[
-            { id: 'overview', label: '概览' },
-            { id: 'charts', label: '图表分析' },
-            { id: 'positions', label: '持仓明细' },
-            {
-              id: 'risk',
-              label: '风险管理',
-              badge: stopLossAlerts.length + takeProfitAlerts.length,
-            },
-          ].map(({ id, label, badge }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id as any)}
-              className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <span>{label}</span>
-              {badge !== undefined && badge > 0 && (
-                <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800'>
-                  {badge}
-                </span>
-              )}
-            </button>
-          ))}
+            { id: 'overview', name: '概览', icon: BarChart3 },
+            { id: 'charts', name: '图表分析', icon: TrendingUp },
+            { id: 'allocation', name: '权重配置', icon: PieChart },
+            { id: 'risk', name: '风险管理', icon: Shield },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === tab.id
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Icon className='h-4 w-4' />
+                <span>{tab.name}</span>
+              </button>
+            );
+          })}
         </nav>
       </div>
 
-      {/* 概览标签页 */}
-      {activeTab === 'overview' && (
-        <div className='space-y-6'>
-          {/* 投资组合概览卡片 */}
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-            <div className='card'>
-              <div className='flex items-center'>
-                <div className='p-2 bg-blue-100 rounded-lg'>
-                  <div className='w-6 h-6 bg-blue-600 rounded'></div>
-                </div>
-                <div className='ml-4'>
-                  <p className='text-sm font-medium text-gray-600'>总市值</p>
-                  <p className='text-2xl font-semibold text-gray-900'>
-                    ¥{(currentPortfolio?.totalValue || 0) / 10000}万
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className='card'>
-              <div className='flex items-center'>
-                <div className='p-2 bg-green-100 rounded-lg'>
-                  <div className='w-6 h-6 bg-green-600 rounded'></div>
-                </div>
-                <div className='ml-4'>
-                  <p className='text-sm font-medium text-gray-600'>总盈亏</p>
-                  <p
-                    className={`text-2xl font-semibold ${
-                      (currentPortfolio?.totalPnL || 0) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}
-                  >
-                    {currentPortfolio?.totalPnL
-                      ? (currentPortfolio.totalPnL >= 0 ? '+' : '') +
-                        (currentPortfolio.totalPnL / 1000).toFixed(1) +
-                        'K'
-                      : '0'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className='card'>
-              <div className='flex items-center'>
-                <div className='p-2 bg-purple-100 rounded-lg'>
-                  <div className='w-6 h-6 bg-purple-600 rounded'></div>
-                </div>
-                <div className='ml-4'>
-                  <p className='text-sm font-medium text-gray-600'>持仓数量</p>
-                  <p className='text-2xl font-semibold text-gray-900'>
-                    {positions.length}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className='card'>
-              <div className='flex items-center'>
-                <div className='p-2 bg-yellow-100 rounded-lg'>
-                  <div className='w-6 h-6 bg-yellow-600 rounded'></div>
-                </div>
-                <div className='ml-4'>
-                  <p className='text-sm font-medium text-gray-600'>收益率</p>
-                  <p
-                    className={`text-2xl font-semibold ${
-                      (currentPortfolio?.totalPnLPercent || 0) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}
-                  >
-                    {currentPortfolio?.totalPnLPercent
-                      ? (currentPortfolio.totalPnLPercent >= 0 ? '+' : '') +
-                        currentPortfolio.totalPnLPercent.toFixed(2) +
-                        '%'
-                      : '0%'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 赛道权重分布 */}
-          <div className='card'>
-            <h3 className='text-lg font-medium text-gray-900 mb-4'>
-              赛道权重分布
-            </h3>
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-              {chartSectorData.map((sector, index) => (
-                <div key={index} className='p-4 bg-gray-50 rounded-lg'>
-                  <div className='flex items-center justify-between mb-2'>
-                    <span className='font-medium text-gray-900'>
-                      {sector.name}
-                    </span>
-                    <span className='text-sm text-gray-500'>
-                      {(sector.weight * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-sm text-gray-600'>
-                      ¥{(sector.value / 10000).toFixed(1)}万
-                    </span>
-                    <span
-                      className={`text-sm ${
-                        sector.pnl >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {sector.pnl >= 0 ? '+' : ''}
-                      {sector.pnlPercent.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 快速操作 */}
-          <div className='card'>
-            <h3 className='text-lg font-medium text-gray-900 mb-4'>快速操作</h3>
-            <div className='flex flex-wrap gap-3'>
-              <button className='btn btn-primary'>
-                <Plus className='w-4 h-4 mr-2' />
-                添加持仓
-              </button>
-              <button className='btn btn-secondary'>
-                <Download className='w-4 h-4 mr-2' />
-                导出报告
-              </button>
-              <button className='btn btn-secondary'>
-                <AlertTriangle className='w-4 h-4 mr-2' />
-                风险检查
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 图表分析标签页 */}
-      {activeTab === 'charts' && (
-        <PortfolioCharts
-          sectorData={chartSectorData}
-          performanceData={performanceData}
-          riskMetrics={riskMetrics}
-        />
-      )}
-
-      {/* 持仓明细标签页 */}
-      {activeTab === 'positions' && (
-        <div className='space-y-6'>
-          <div className='card'>
-            <h3 className='text-lg font-medium text-gray-900 mb-4'>持仓明细</h3>
-            <div className='overflow-x-auto'>
-              <table className='min-w-full divide-y divide-gray-200'>
-                <thead className='bg-gray-50'>
-                  <tr>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      股票信息
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      持仓数量
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      成本价
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      现价
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      市值
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      盈亏
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      权重
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className='bg-white divide-y divide-gray-200'>
-                  {positions.map((position) => (
-                    <tr key={position.id}>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <div>
-                          <div className='text-sm font-medium text-gray-900'>
-                            {position.stockName}
-                          </div>
-                          <div className='text-sm text-gray-500'>
-                            {position.stockCode} · {position.sector}
-                          </div>
+      {/* 标签页内容 */}
+      <div className='min-h-96'>
+        {activeTab === 'overview' && (
+          <div className='space-y-6'>
+            <PortfolioCharts
+              sectorData={chartSectorData}
+              performanceData={performanceData}
+            />
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+              <Card>
+                <CardHeader>
+                  <CardTitle>风险指标</CardTitle>
+                  <CardDescription>关键风险指标监控</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className='space-y-4'>
+                    {riskMetrics.map((metric, index) => (
+                      <div key={index} className='flex items-center justify-between'>
+                        <span className='text-sm text-gray-600'>{metric.metric}</span>
+                        <div className='flex items-center space-x-3'>
+                          <span className='font-semibold'>{metric.value}</span>
+                          <span className='text-xs text-gray-400'>目标: {metric.target}</span>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              metric.status === 'good'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {metric.status === 'good' ? '良好' : '注意'}
+                          </span>
                         </div>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        {position.quantity.toLocaleString()}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        ¥{position.avgCost.toFixed(2)}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        ¥{position.currentPrice.toFixed(2)}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        ¥{(position.marketValue / 10000).toFixed(1)}万
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span
-                          className={`text-sm ${
-                            position.unrealizedPnL >= 0
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          {position.unrealizedPnL >= 0 ? '+' : ''}¥
-                          {position.unrealizedPnL.toFixed(0)}
-                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>快速操作</CardTitle>
+                  <CardDescription>常用功能快捷入口</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className='space-y-3'>
+                    <Button variant='primary' className='w-full' onClick={() => window.location.href = '/positions'}>
+                      管理持仓
+                    </Button>
+                    <Button variant='secondary' className='w-full' onClick={() => window.location.href = '/business-process'}>
+                      风控设置
+                    </Button>
+                    <Button variant='secondary' className='w-full' onClick={() => window.location.href = '/reports'}>
+                      查看报告
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'charts' && (
+          <PortfolioCharts
+            sectorData={chartSectorData}
+            performanceData={performanceData}
+          />
+        )}
+
+        {activeTab === 'allocation' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>权重配置</CardTitle>
+              <CardDescription>调整各赛道权重分配</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className='space-y-4'>
+                {chartSectorData.map((sector, index) => (
+                  <div key={index} className='flex items-center justify-between p-4 bg-gray-50 rounded-lg'>
+                    <div className='flex items-center space-x-3'>
+                      <div
+                        className='w-4 h-4 rounded-full'
+                        style={{ backgroundColor: sector.color }}
+                      ></div>
+                      <span className='font-medium'>{sector.name}</span>
+                    </div>
+                    <div className='flex items-center space-x-4'>
+                      <div className='w-32 bg-gray-200 rounded-full h-2 overflow-hidden'>
                         <div
-                          className={`text-xs ${
-                            position.unrealizedPnLPercent >= 0
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          {position.unrealizedPnLPercent >= 0 ? '+' : ''}
-                          {position.unrealizedPnLPercent.toFixed(1)}%
-                        </div>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        {(position.weight * 100).toFixed(1)}%
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+                          className='h-2 rounded-full'
+                          style={{
+                            width: `${sector.weight * 100}%`,
+                            backgroundColor: sector.color,
+                          }}
+                        ></div>
+                      </div>
+                      <span className='font-semibold'>{(sector.weight * 100).toFixed(1)}%</span>
+                      <Button variant='ghost' size='sm'>
+                        调整
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* 风险管理标签页 */}
-      {activeTab === 'risk' && (
-        <RiskManagementPanel
-          riskAssessment={riskAssessment}
-          stopLossAlerts={stopLossAlerts}
-          takeProfitAlerts={takeProfitAlerts}
-          rebalanceSuggestions={rebalanceSuggestions}
-          onRefreshRisk={handleRefreshRisk}
-          onGenerateReport={handleGenerateReport}
-          onExportReport={handleExportReport}
-        />
-      )}
+        {activeTab === 'risk' && (
+          <RiskManagementPanel
+            riskAssessment={riskAssessment}
+            stopLossAlerts={stopLossAlerts}
+            takeProfitAlerts={takeProfitAlerts}
+            rebalanceSuggestions={rebalanceSuggestions}
+          />
+        )}
+      </div>
     </div>
   );
 };
